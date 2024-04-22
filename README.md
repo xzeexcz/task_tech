@@ -1,6 +1,6 @@
 
 # ADILZHAN OTEBEKOV
-# Если хотите увидеть историю коммитов - <span style="color:red;"(https://github.com/xzeexcz/fmdskmfsdklmfdskm)</span>  
+#<span style="color:red;"> Если хотите увидеть историю коммитов - https://github.com/xzeexcz/fmdskmfsdklmfdskm)</span>
 # Просто на удаленном репо - добавил файл, а в локалке развилка пошла, пытался запулить - да интернет не позволяет.
 
 
