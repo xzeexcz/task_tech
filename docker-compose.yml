@@ -1,0 +1,94 @@
+version: "3.9"
+services:
+  cassandra:
+    image: cassandra
+    container_name: 'my-casik'
+    ports:
+      - "9042:9042"
+    volumes:
+      - ./init.cql:/docker-entrypoint-initdb.d/init.cql
+  postgres:
+    image: postgres:13.3
+    container_name: 'my-pggi'
+    environment:
+      POSTGRES_DB: transactions
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: qweqwe
+    ports:
+      - "5432:5432"
+  server:
+    build: ./eureka-server
+    image: xzeexcz/eureka-server
+    container_name: 'server'
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_APPLICATION_NAME: eureka-server
+      EUREKA_CLIENT_REGISTER-WITH-EUREKA: false
+      EUREKA_CLIENT_FETCH-REGISTRY : false
+      EUREKA_CLIENT_SERVICE-URL.DEFAULTZONE : http://localhost:8081/eureka
+      LOGGING_LEVEL_COM_NETFLIX_EUREKA : OFF
+      LOGGING_LEVEL_COM_NETFLIX_DISCOVERY : OFF
+  api-gateway:
+    build: ./api-gateway
+    image: xzeexcz/api-gateway
+    container_name: 'gateway'
+    ports:
+      - "8888:8888"
+    depends_on:
+      - server
+    restart: on-failure
+    environment:
+      SPRING_APPLICATION_NAME: apigateway
+      EUREKA_CLIENT_SERVICE-URL.DEFAULTZONE : http://localhost:8081/eureka
+      SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED : true
+      SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_LOWER-CASE-SERVICE-ID : true
+  client-service:
+    build: ./client-service
+    image: xzeexcz/client-service
+    container_name: 'client-service'
+    ports:
+      - "8901:8901"
+    depends_on:
+      - server
+      - api-gateway
+      - cassandra
+    environment:
+      SPRING_APPLICATION_NAME: client
+      EUREKA_CLIENT_SERVICE-URL.DEFAULTZONE : http://localhost:8081/eureka
+      SPRING_JPA_HIBERNATE_DDL-AUTO : none
+      SPRING_JPA_SHOW-SQL : true
+      SPRING_CASSANDRA_KEYSPACE-NAME : system
+      SPRING_CASSANDRA_SCHEMA-ACTION : create_if_not_exists
+      SPRING_CASSANDRA_USERNAME : cassandra
+      SPRING_CASSANDRA_PASSWORD : cassandra
+      SPRING_CASSANDRA_PORT : 9043
+      KZ_SOLVA_TWELVEDATA_URL : https://api.twelvedata.com
+      KZ_SOLVA_TWELVEDATA_APIKEY : 0c904e7b9e9449de9e5120bcfdd3c151
+      THREADS_POOL : 4
+      API_GATEWAY_BASIC.URL : http://localhost:8888/transactions/api/v1
+      OVER_LIMIT_ENDPOINT : /get-over-transactions
+    extra_hosts:
+      - "localhost:127.0.0.1"
+  transactions-service:
+    build: ./transactions-service
+    image: xzeexcz/transactions-service
+    container_name: 'transactions-service'
+    ports:
+      - "8999:8999"
+    depends_on:
+      - server
+      - api-gateway
+      - postgres
+    restart: on-failure
+    environment:
+      SPRING_APPLICATION_NAME: transactions
+      EUREKA_CLIENT_SERVICE-URL.DEFAULTZONE: http://localhost:8081/eureka
+      SPRING_JPA_HIBERNATE_DDL-AUTO: none
+      SPRING_JPA_SHOW-SQL: true
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/transactions
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: qweqwe
+      THREADS_POOL: 4
+      API_TRANSACTIONS_URL: http://localhost:8888/client/api/v1
+      API_TRANSACTIONS_ENDPOINT: /get-currency-close
